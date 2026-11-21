@@ -2,13 +2,21 @@ import type { Shift, ServiceKind } from "../../../shared/types";
 import { copyShift, record } from "../../../shared/document";
 import { serviceBlockReason } from "../lib/eligibility";
 import { serviceCatalog } from "./catalog";
+import {
+  claimConflict,
+  conflictKey,
+  accrueDelay,
+  worldEpoch,
+} from "../../settlement";
+
 export function dispatchService(
   state: Shift,
   flightId: string,
   kind: ServiceKind,
   vehicleId: string,
 ): Shift {
-  const s = copyShift(state),
+  const settled = accrueDelay(state, state.settlement.from, state.time);
+  const s = copyShift(settled),
     reason = serviceBlockReason(s, flightId, kind),
     v = s.vehicles.find((x) => x.id === vehicleId),
     f = s.flights.find((x) => x.id === flightId),
@@ -22,10 +30,18 @@ export function dispatchService(
     !stand ||
     !task
   ) {
-    s.conflicts++;
-    s.score -= 10;
-    record(s, reason ?? "车辆不可用或车辆类型不匹配", "warning");
-    return s;
+    const blocked = claimConflict(s, {
+      key: conflictKey("service", flightId, kind, vehicleId),
+      epoch: worldEpoch(s),
+      flightId,
+    });
+    if (!blocked.fresh) return blocked.state;
+    record(
+      blocked.state,
+      reason ?? "车辆不可用或车辆类型不匹配",
+      "warning",
+    );
+    return blocked.state;
   }
   task.status = "travel";
   task.vehicleId = v.id;

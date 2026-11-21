@@ -4,9 +4,11 @@ import { serviceBlockReason } from "../lib/eligibility";
 export function ServicePanel({
   state,
   onDispatch,
+  onRecall,
 }: {
   state: Shift;
   onDispatch: (kind: ServiceKind, vehicleId: string) => void;
+  onRecall: (kind: ServiceKind) => void;
 }) {
   const tasks = state.services.filter(
     (t) => t.flightId === state.selectedFlightId,
@@ -65,6 +67,16 @@ export function ServicePanel({
                 onClick={() => selected && onDispatch(t.kind, selected.id)}
               >
                 派遣 ↗
+              </button>
+            )}
+            {t.status === "travel" && (
+              <button
+                className="dispatch recall"
+                data-testid={`recall-service-${t.kind}`}
+                title="撤回未开始的指令；已经发生的等待不会消失"
+                onClick={() => onRecall(t.kind)}
+              >
+                撤回
               </button>
             )}
           </div>

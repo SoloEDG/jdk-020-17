@@ -10,12 +10,14 @@ export function Inspector({
   onStand,
   onAssign,
   onDispatch,
+  onRecall,
 }: {
   state: Shift;
-  onChange: (s: Shift) => void;
+  onChange: (update: (s: Shift) => Shift) => void;
   onStand: (id: string) => void;
   onAssign: (id: string) => void;
   onDispatch: (k: ServiceKind, v: string) => void;
+  onRecall: (k: ServiceKind) => void;
 }) {
   const f = state.flights.find((x) => x.id === state.selectedFlightId)!;
   return (
@@ -65,12 +67,12 @@ export function Inspector({
           </b>
         </div>
       )}
-      <ServicePanel state={state} onDispatch={onDispatch} />
+      <ServicePanel state={state} onDispatch={onDispatch} onRecall={onRecall} />
       <button
         className="primary depart-button"
         data-testid="depart"
         disabled={!flightReady(state, f.id) || f.status !== "parked"}
-        onClick={() => onChange(departFlight(state, f.id))}
+        onClick={() => onChange((s) => departFlight(s, f.id))}
       >
         {f.status === "departed"
           ? "已完成离港"

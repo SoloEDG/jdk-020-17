@@ -9,6 +9,7 @@ const flightStates = [
 ];
 const serviceStates = ["pending", "travel", "working", "done"];
 const vehicleStates = ["idle", "travel", "working", "returning"];
+const delayCauses = ["stand", "vehicle", "service", "player"];
 type Row = Record<string, unknown>;
 function row(value: unknown): value is Row {
   return typeof value === "object" && value !== null;
@@ -36,10 +37,76 @@ function collection(value: unknown, length: number): value is Row[] {
     unique(value)
   );
 }
+function validSettlement(value: unknown, now: number): boolean {
+  if (!row(value)) return false;
+  if (
+    !finite(value.from) ||
+    value.from < 0 ||
+    value.from > now + 1e-6 ||
+    !finite(value.nextIntervalId) ||
+    !Array.isArray(value.intervals)
+  )
+    return false;
+  const seen = new Set<string>(),
+    lastEnd = new Map<string, number>();
+  for (const interval of value.intervals as Row[]) {
+    if (
+      !row(interval) ||
+      !finite(interval.id) ||
+      !finite(interval.start) ||
+      !finite(interval.end) ||
+      !text(interval.flightId) ||
+      !text(interval.detail) ||
+      !delayCauses.includes(interval.cause as string) ||
+      typeof interval.reducible !== "boolean" ||
+      typeof interval.final !== "boolean" ||
+      !Array.isArray(interval.blockers)
+    )
+      return false;
+    if (interval.start < 0 || interval.end <= interval.start) return false;
+    if (interval.end > value.from + 1e-6) return false;
+    if (interval.id >= value.nextIntervalId) return false;
+    const key = String(interval.id);
+    if (seen.has(key)) return false;
+    seen.add(key);
+    // Intervals of one flight must be ordered and must not overlap: the
+    // settlement counts every second exactly once.
+    const previous = lastEnd.get(interval.flightId);
+    if (previous !== undefined && interval.start < previous - 1e-6) return false;
+    lastEnd.set(interval.flightId, interval.end);
+    if (
+      !(interval.blockers as unknown[]).every(
+        (b) =>
+          row(b) &&
+          delayCauses.includes(b.cause as string) &&
+          typeof b.detail === "string",
+      )
+    )
+      return false;
+  }
+  return true;
+}
+function validScoreEvents(value: unknown, nextId: number): boolean {
+  return (
+    Array.isArray(value) &&
+    value.length <= 120 &&
+    value.every(
+      (e) =>
+        row(e) &&
+        finite(e.id) &&
+        e.id < nextId &&
+        finite(e.time) &&
+        finite(e.points) &&
+        text(e.reason) &&
+        ["departure", "conflict"].includes(e.kind as string) &&
+        (e.flightId === undefined || text(e.flightId)),
+    )
+  );
+}
 export function validShift(value: unknown): value is Shift {
   if (
     !row(value) ||
-    value.version !== 1 ||
+    value.version !== 2 ||
     !finite(value.time) ||
     value.time < 0 ||
     !finite(value.score) ||
@@ -47,7 +114,12 @@ export function validShift(value: unknown): value is Shift {
     value.conflicts < 0 ||
     typeof value.paused !== "boolean" ||
     ![1, 2, 4].includes(value.speed as number) ||
-    !finite(value.nextEventId)
+    !finite(value.nextEventId) ||
+    !finite(value.nextScoreEventId) ||
+    !Array.isArray(value.conflictGuards) ||
+    !value.conflictGuards.every((x) => typeof x === "string") ||
+    !validSettlement(value.settlement, value.time as number) ||
+    !validScoreEvents(value.scoreEvents, value.nextScoreEventId as number)
   )
     return false;
   if (

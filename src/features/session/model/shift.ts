@@ -6,7 +6,7 @@ import { initialVehicles } from "../../fleet";
 export function createShift(): Shift {
   const flights = initialFlights();
   return {
-    version: 1,
+    version: 2,
     time: 0,
     paused: false,
     speed: 1,
@@ -19,6 +19,10 @@ export function createShift(): Shift {
     events: [
       { id: 0, time: 0, text: "早班开始 · 3 架航班等待机位分配", tone: "info" },
     ],
+    settlement: { from: 0, intervals: [], nextIntervalId: 1 },
+    scoreEvents: [],
+    nextScoreEventId: 1,
+    conflictGuards: [],
     selectedFlightId: "MU2451",
     nextEventId: 1,
   };

@@ -2,7 +2,10 @@ import { useState } from "react";
 import { FlightBoard, assignStand, selectFlight } from "../features/flights";
 import { ApronMap, selectStand } from "../features/apron";
 import { FleetPanel, selectVehicle } from "../features/fleet";
-import { dispatchService } from "../features/services";
+import {
+  dispatchService,
+  recallService,
+} from "../features/services";
 import {
   SessionBar,
   ScoreStrip,
@@ -14,6 +17,7 @@ import {
 } from "../features/session";
 import { useSimulation } from "./useSimulation";
 import { Inspector } from "./Inspector";
+import { SettlementPanel } from "../features/settlement";
 import "./styles.css";
 export function App() {
   const [state, setState] = useSimulation(),
@@ -86,8 +90,12 @@ export function App() {
             onDispatch={(kind, id) =>
               setState((s) => dispatchService(s, s.selectedFlightId, kind, id))
             }
+            onRecall={(kind) =>
+              setState((s) => recallService(s, s.selectedFlightId, kind))
+            }
           />
         </div>
+        <SettlementPanel state={state} />
         <footer>
           <span>APRON 07 · 地面有序，天空自由。</span>
           <span>操作提示：选择航班 → 分配机位 → 派遣车辆 → 批准离港</span>

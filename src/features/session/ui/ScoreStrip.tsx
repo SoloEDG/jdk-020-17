@@ -1,10 +1,9 @@
 import type { Shift } from "../../../shared/types";
+import { formatSeconds, settlementReport } from "../../settlement/lib/report";
 export function ScoreStrip({ state }: { state: Shift }) {
-  const departed = state.flights.filter((f) => f.status === "departed").length,
-    late = state.flights.filter(
-      (f) =>
-        (f.departureAt ?? state.time) > f.deadline && f.status !== "departed",
-    ).length;
+  const report = settlementReport(state),
+    departed = state.flights.filter((f) => f.status === "departed").length,
+    late = report.flights.filter((f) => f.delay > 0).length;
   return (
     <div className="score-strip">
       <div>
@@ -30,10 +29,10 @@ export function ScoreStrip({ state }: { state: Shift }) {
       <div>
         <span className="stat-icon">◷</span>
         <p>
-          延误航班
+          累计延误
           <strong>
-            {String(late).padStart(2, "0")}
-            <small>FLIGHTS</small>
+            {formatSeconds(report.totalDelay)}
+            <small>{late} LATE</small>
           </strong>
         </p>
       </div>
